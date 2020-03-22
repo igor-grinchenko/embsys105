@@ -1,0 +1,92 @@
+use a semaphore to share the SPI resource
+
+Functions to be replaced:
+I2C_read_ack(I2C_TypeDef* I2Cx);
+I2C_read_nack(I2C_TypeDef* I2Cx);
+I2C_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction);
+I2C_stop(I2C_TypeDef* I2Cx);
+I2C_write(I2C_TypeDef* I2Cx, uint8_t data);
+
+PJDF Functions:
+Open(char *pName, INT8U flags);
+Close(HANDLE handle);
+Read(HANDLE handle, void* pBuffer, INT32U* pLength);
+Write(HANDLE handle, void* pBuffer, INT32U* pLength);
+Ioctl(HANDLE handle, INT8U request, void* pArgs, INT32U* pSize);
+
+void I2C_SendData(I2C_TypeDef* I2Cx, uint8_t Data)
+uint8_t I2C_ReceiveData(I2C_TypeDef* I2Cx)
+
+
+Notes:
+1. Use Ioctl to set slave address
+2. Read to take register address from first byte of pBuffer
+3. Read has to tell device what register to read from and then do the read
+
+    pDriver->Open = OpenI2C;
+    pDriver->Close = CloseI2C;
+    pDriver->Read = ReadI2C;
+    pDriver->Write = WriteI2C;
+    pDriver->Ioctl = IoctlI2C;
+
+
+CPU_SR_ALLOC();                 (1)
+  
+  
+    CPU_CRITICAL_ENTER();           (2)
+    Access the resource;            (3)
+    CPU_CRITICAL_EXIT();            (4)
+
+
+
+struct _DriverInternal
+{
+    char *pName;     // name used by applications and internally to identify the device
+    
+    // Method for initializing the device driver before exposing it to applications
+    PjdfErrCode (*Init)(DriverInternal *pDriver, char *pName);
+    
+    BOOLEAN initialized; // true if Init() ran successfully otherwise false.
+    OS_EVENT *sem;  // semaphore to serialize operations on the device 
+    INT8U refCount; // current number of Open handles to the device
+    INT8U maxRefCount; // Maximum Open handles allowed for the device
+    void *deviceContext; // device dependent data
+    
+    // Device-specific methods for operating on the device
+    PjdfErrCode (*Open)(DriverInternal *pDriver, INT8U flags);
+    PjdfErrCode (*Close)(DriverInternal *pDriver);
+    PjdfErrCode (*Read)(DriverInternal *pDriver, void* pBuffer, INT32U* pCount);
+    PjdfErrCode (*Write)(DriverInternal *pDriver, void* pBuffer, INT32U* pCount);
+    PjdfErrCode (*Ioctl)(DriverInternal *pDriver, INT8U request, void* pArgs, INT32U* pSize);
+};
+
+
+
+PjdfContextLcdILI9341 *pContext = (PjdfContextLcdILI9341*) pDriver->deviceContext;
+
+PjdfContextSpi *pContext = (PjdfContextSpi*) pDriver->deviceContext;
+if (pContext == NULL) while(1);
+    SPI_GetBuffer(pContext->spiMemMap, (INT8U*) pBuffer, *pCount);
+
+
+HANDLE htouch = Open(PJDF_DEVICE_ID_I2C1, 0);
+
+
+SPI_GetBuffer(pContext->spiMemMap, (INT8U*) pBuffer, *pCount);
+
+os_cpu.h
+
+
+
+
+
+
+#define PJDF_I2C1 I2C1
+
+check 
+1. htouch value
+
+
+bspI2C.h
+
+HANDLE htouch 
